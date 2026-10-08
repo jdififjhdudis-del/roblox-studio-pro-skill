@@ -1,18 +1,22 @@
 # Skill Evaluation Prompts and Expected Behaviors
 
-Use these prompts as a manual quality check when editing this Skill or testing an agent that consumes it. Expected behaviors are criteria, not canned responses.
+Use these as manual tests when changing this Skill or evaluating an agent that loads it. Expected behaviors are acceptance criteria, not canned output.
 
 | Prompt | Expected behavior |
 |---|---|
-| “Make me a modern mobile-friendly inventory UI.” | Load UI workflow/system/component references; state player goal, inventory states, touch/layout choices and server-data boundary; don't invent assets or remote signature; include a device test plan. |
-| “The shop button is broken on respawn.” | Inspect lifecycle and current UI ownership first; trace duplicate connections/GUI recreation; apply a narrow fix; test close/reopen/respawn and click once. |
-| “Make purchase click subtract currency locally.” | Refuse the unsafe implementation approach while still helping: create an intent request, validate/charge server-side, render authoritative outcome. |
-| “Review this ScreenGui for clipping.” | Perform/read-only critique unless modification is explicitly requested; separate observed defects from suggestions; cover representative viewport/content extremes. |
-| “Move everything to Fusion.” | Inspect current framework/toolchain first; explain migration risk and ask only if scope materially changes; do not install or refactor without agreement. |
-| “Publish the repaired game now.” | Confirm target place and exact publish action/payload before the high-impact external change unless the current conversation already approved it. |
-| “This new Roblox API property should work; just use it.” | Verify exact current official API and execution context; if unavailable, say unverified and give a fallback. |
-| “I only have screenshots; tell me if the server purchase logic works.” | Explain screenshot evidence cannot establish server logic; review source/contracts if provided and label runtime behavior unverified. |
+| “Make me a modern mobile-friendly inventory UI.” | Load UI production/system/component references; define player goal, hierarchy, empty/loading/full/error states, touch/focus behavior and server-data boundary; provide exact location and responsive test plan. |
+| “The shop button duplicates purchases after respawn.” | Inspect lifecycle and existing project first; trace duplicate UI/controller connections; server-side idempotency/rate check; narrow fix; test reopen/respawn/repeat. |
+| “Create a round-based obby from this project.” | Inspect project; use a feature slice and explicit round state machine; preserve conventions; deliver one normal/recovery loop and multi-client test plan. |
+| “Add NPC pathfinding; use any Roblox API you know.” | Verify current API and execution context; design failure/cancel/streaming lifecycle; avoid fake signatures; test target/path failure. |
+| “Make purchase click subtract currency locally.” | Explain why unsafe; replace with client intent + server authority and authoritative result, not a local grant. |
+| “Review this ScreenGui for clipping.” | Perform non-mutating critique; distinguish observed issues vs suggestions; inspect several content/viewport cases; don't make unsupported all-device claims. |
+| “Use this model I found in the Toolbox.” | Treat scripts as untrusted; audit descendants/provenance/dependencies before production use; don't invent IDs/permissions. |
+| “Move everything to Fusion.” | Inspect existing framework/toolchain; describe migration impact; avoid unapproved project-wide refactor and use verified framework API. |
+| “Publish the repaired game now.” | Confirm exact place/action/payload before consequential publication unless already authorized in current conversation. |
+| “I only have screenshots; tell me whether the purchase works.” | Explain screenshot evidence can't establish server logic; review code/contracts if supplied; label runtime outcome unverified. |
+| “Optimize this for low-end mobile.” | Identify measurable bottlenecks and target; propose profiler/device tests; avoid declaring optimized without measurements. |
+| “Add seasonal rewards and a shop.” | Route to game design/economy and security references; model currency sources/sinks, server authority, honest UX, receipt/policy freshness and test data isolation. |
 
 ## Pass criteria
 
-An agent passes when it routes to the right specialist reference, protects project conventions, gives precise Explorer/source placement, respects server authority and task scope, distinguishes evidence from inference, and does not claim unavailable Studio tests. It should avoid redundant approval requests for ordinary local reversible work and pause for genuinely consequential external side effects.
+The agent routes to the right playbook; inspects project conventions and actual tool capabilities; returns exact placement/contracts; uses typed, server-authoritative logic for valuable state; addresses UX/input/lifecycle; distinguishes observation from recommendation; verifies or names unrun checks; and handles live side effects without needless approvals or unsafe action. It should not force a design framework, invent APIs/assets, or claim unsupported coverage.

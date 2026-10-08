@@ -6,6 +6,8 @@ Framework-neutral guidance: use Roblox Instances directly or the framework alrea
 
 Before making a reusable control, define its contract: inputs/properties, events/output, state owned by the component versus state owned by the screen, accessible label, supported input modes, lifecycle owner, and visual token dependencies. Reuse a component only when several screens need the same behavior or styling; don't abstract a one-off control prematurely.
 
+The bundle includes [`../templates/responsive-panel.client.luau`](../templates/responsive-panel.client.luau) as a concrete starting point for a bounded panel, text constraints, `Activated` input, and open/close states. It is a **demonstration**, not a production theme, and contains no gameplay/server request. This environment does not include a Luau analyzer or Roblox Studio runtime; verify it in the target Studio version and adapt safe areas, visual style and navigation before shipping.
+
 A button component should define at least: label/icon; intent (primary, secondary, destructive); enabled/busy state; activation callback; focus/pressed feedback; minimum usable hit region; and whether it can be activated by gamepad/touch. If the action is consequential, its callback initiates an intent request; the server remains authoritative.
 
 ## Interaction state machine

@@ -30,6 +30,8 @@ Acceptance checks:
 
 If the request supplies enough detail, do not interrupt progress with redundant questions. If style is unspecified, infer from the existing game. For a new project, choose a coherent, adjustable direction and state the assumption. Avoid imposing a fixed palette or art style.
 
+For reusable written artifacts, start from [`../templates/ui-design-brief.md`](../templates/ui-design-brief.md). Treat `Status: Approved` as a record of real user/reviewer authorization, not a mandatory gate for routine reversible work.
+
 ## C. Plan interaction and screen states
 
 1. Name the user task and the visual focal point; assign one primary action and demote secondary actions.
@@ -90,3 +92,5 @@ Record actual configurations and states tested. Name what could not be tested, a
 ## H. UI delivery notes
 
 For significant screens, deliver: a brief of player goal/visual direction; exact Explorer placement; data/state contract and any remotes; interaction and responsive decisions; actual viewport/input/state evidence; remaining gaps. Keep the handoff concise.
+
+Use [`../templates/test-evidence.md`](../templates/test-evidence.md) when a release or multi-device UI change benefits from a reusable evidence record. For a lightweight change, a concise summary is enough.
