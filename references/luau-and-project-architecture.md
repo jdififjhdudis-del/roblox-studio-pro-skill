@@ -1,69 +1,52 @@
 # Luau and Roblox Project Architecture
 
-Use this as a decision aid, not a rigid framework. Preserve an existing project's conventions unless they are actively harmful.
+Use as a decision aid, not a framework prescription. Preserve existing conventions unless they are actively harmful. Verify current APIs and supported contexts in the official engine reference.
 
-## Script placement and execution context
+## Script placement and trust boundary
 
-- `Script`: server-side logic in a valid server execution container (commonly `ServerScriptService`); authoritative gameplay, validation, and persistence belong on the server.
-- `LocalScript`: client-side input and presentation in supported client containers (commonly `StarterPlayerScripts`, `StarterCharacterScripts`, `StarterGui`, or `StarterPack`). Check current execution rules for the actual parent.
-- `ModuleScript`: reusable code, but its security and state implications depend on who requires it and where it replicates. A module replicated to clients is not secret.
-- `ReplicatedStorage`: shared remotes/modules/config that are safe for clients to read. Do not place secrets or privileged logic there.
+- `Script`: server-side logic in a valid server execution container, commonly `ServerScriptService`; use for authoritative gameplay, validation and persistence.
+- `LocalScript`: client-side input/presentation in supported client containers, commonly `StarterPlayerScripts`, `StarterCharacterScripts`, `StarterGui`, or `StarterPack`. Confirm execution rules for the actual parent.
+- `ModuleScript`: reusable code, but security and state depend on who requires it and whether it replicates. A client-replicated module is not secret.
+- `ReplicatedStorage`: shared remotes/modules/config safe for clients to inspect. Keep secrets and trusted authority out.
 - `ServerStorage`/`ServerScriptService`: server-only assets and logic where appropriate.
 
-Do not simply move a script to a different container without checking its execution context, dependencies, replication, and lifecycle.
+Never move a script without checking execution context, replication, ownership, lifecycle and dependencies. Do not assume client-created Instances/properties replicate to the server.
 
-## Luau conventions
+## Luau standards
 
-- Prefer `local` bindings, consistent PascalCase for Roblox instances/types as customary, and clear camelCase/local naming consistent with the project.
-- For significant new modules, use `--!strict` where the project/runtime supports it. Give module exports, functions, state records, and remote payloads explicit types. Keep type definitions close to their contract.
-- Avoid `any` as a convenience. Narrow unknown or loosely shaped data at the boundary and fail safely.
-- Use explicit return types for public functions when they clarify a contract. Use early returns for invalid states and avoid deeply nested conditionals.
-- Prefer `task.wait`, `task.delay`, and `task.spawn` over legacy scheduling functions. Avoid `while true` without a bounded purpose, cancellation plan, and appropriate yield.
-- Avoid `WaitForChild` as a blanket cure for ordering bugs. Use it for expected replication timing; add a timeout and clear error for required instances when a hang would otherwise be opaque.
-- Use `pcall` only around operations that can fail; inspect the result and report/handle errors rather than suppressing them.
+Use `local`, descriptive names, small cohesive functions, clear early returns and project-consistent conventions. Use `--!strict` for nontrivial new code when compatible; explicitly type public module APIs, state records, remote payloads and return values where useful. Avoid `any` as a shortcut; validate and narrow untrusted data at boundaries. Handle tagged unions exhaustively when practical.
 
-## Module and service design
+Prefer `task` scheduling APIs over legacy `wait`/`spawn`/`delay`; avoid unbounded loops and unnecessary per-frame work. Clean up connections, tweens, temporary Instances and spawned work. Use timeouts/diagnostics for required `WaitForChild` paths when indefinite waiting would hide a hierarchy error. Use `pcall` around failure-prone operations and inspect the result; don't swallow errors.
 
-Create modules around cohesive responsibility (e.g., UI controller, inventory rules, configuration). Avoid giant scripts that mix input, rendering, remote contracts, and persistence. Avoid needless abstraction for tiny features.
+## Architecture and lifecycle
 
-Use dependency injection or explicit parameters when it makes tests/reuse easier. Avoid hidden global state. Ensure initialization is idempotent or guarded so respawn/reopen does not multiply connections or actions.
+Organize around cohesive responsibility: view/construction, controller/input, state/data adapter, and remote boundary when complexity warrants it. Keep small features simple; do not build an abstraction framework prematurely. Make initialization idempotent or guarded. Define who owns startup and cleanup, and test character respawn, screen close/reopen, and player removal.
 
-## Project and sync tools
+Client state is a view/cache, not authority. Server state owns economy, inventory mutations, health/damage, permissions, cooldowns, and persistence as appropriate. Shared module code does not make its values trusted if executed by the client.
 
-A project may be edited directly in Studio, as `.rbxlx`/`.rbxmx`, or through Rojo/another sync workflow. Inspect the actual setup first. When Rojo is used, follow its project mapping and source-of-truth rules; do not edit generated output or an unmapped file and assume Studio will sync it. Confirm mapping and sync status before claiming the instance exists in Studio.
+## Existing projects and toolchains
 
-Before changing an existing project:
+Inspect project shape first: direct Studio place, `.rbxlx`/`.rbxmx`, Rojo, plugin-generated hierarchy, or another workflow. Identify authored source-of-truth, mappings, dependencies, version pins and build steps. With Rojo, follow actual `default.project.json` mappings and avoid editing generated output as if it were source. Preserve the working toolchain unless migration was requested and justified. Do not claim a source edit is visible in Studio until sync/build confirmation.
 
-1. Find the entry points and existing modules.
-2. Check naming, folders, style, and available tooling.
-3. Identify duplicate functionality and dependencies.
-4. Make a narrow edit and preserve unrelated work.
-5. Verify sync/build errors and Explorer paths after changes.
+A useful preflight is: locate entry points → map existing owners/modules → inspect warnings → trace remote/data path → find tests/build scripts → name the smallest target diff.
 
-## API verification
+## API and dependency verification
 
-Use official Creator Hub documentation and the class reference for exact properties, methods, enum values, security tags, and supported parent contexts. When an API is unfamiliar or recent:
+For unfamiliar, recent, deprecated or security-sensitive members, verify exact class/member, access context, arguments/returns, replication behavior and deprecation status in Roblox Creator Hub. For community modules/frameworks, verify repository, current major version, installation/mapping, compatibility with project Luau and license/source constraints. If verification fails, ask or explain uncertainty instead of inventing a signature.
 
-1. Search the official reference using the exact class/member.
-2. Check whether it is deprecated, restricted, server-only, client-only, or not scriptable.
-3. Verify argument and return types.
-4. Use the code only if the documented execution context matches the implementation.
-5. If not verifiable, state uncertainty and avoid fabricated signatures.
+## Frequent defects to detect
 
-## Common architecture errors to catch
+- LocalScript in a non-executing parent; server Script attempting client UI/input behavior.
+- Client-only state mistaken for authoritative state or assumed to replicate.
+- Client-owned secret/config or client supplied price/permission trusted by server.
+- Duplicate `PlayerGui`/ScreenGui creation or multiplied event handlers after respawn.
+- Circular requires, startup-order dependency, endless wait, stale async writes, or unhandled operation failure.
+- A Rojo edit to the wrong path, ignored mapping, generated file, or unsynced Studio place.
 
-- A LocalScript placed in a container where it does not execute.
-- Assuming a client-created instance or property change replicates to the server.
-- Trusting a client-supplied item price, target, reward, position, or permission.
-- Putting authoritative state in a shared module or replicated container.
-- Rebuilding the same UI repeatedly on character respawn.
-- Circular module requires, initialization order assumptions, or unbounded waits.
-- Using RemoteFunctions for work that can yield indefinitely without a timeout/fallback strategy.
+## Source references
 
-## Official references
-
-- [Luau reference](https://create.roblox.com/docs/luau)
-- [Luau type checking](https://create.roblox.com/docs/luau/type-checking)
+- [Luau](https://create.roblox.com/docs/luau)
+- [Type checking](https://create.roblox.com/docs/luau/type-checking)
 - [Client-server runtime](https://create.roblox.com/docs/projects/client-server)
-- [Roblox API reference](https://create.roblox.com/docs/reference/engine)
-- [Rojo documentation](https://rojo.space/docs)
+- [Engine reference](https://create.roblox.com/docs/reference/engine)
+- [Rojo docs](https://rojo.space/docs)
