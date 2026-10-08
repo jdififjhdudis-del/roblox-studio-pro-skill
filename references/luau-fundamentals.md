@@ -1,0 +1,462 @@
+# Luau Language Fundamentals
+
+> Reference for AI coding skill — verified against official Roblox documentation and Luau language release specs (**v0.740**, released 2026-09-25; engine 0.741.19.7411056).
+> Sources: https://create.roblox.com/docs/luau, https://luau.org, https://roblox.github.io/lua-style-guide/
+
+## Table of Contents
+- [Language Overview](#language-overview)
+- [Type System & Inference Modes](#type-system--inference-modes)
+- [New Type Solver & Type Functions](#new-type-solver--type-functions)
+- [Type Annotations](#type-annotations)
+- [Type Operators & Type Constructors](#type-operators--type-constructors)
+- [Buffer and Vector Native Libraries](#buffer-and-vector-native-libraries)
+- [Native Code Generation (`--!native`)](#native-code-generation---native)
+- [Naming Conventions](#naming-conventions)
+- [Modern Task Library & Fast pcall](#modern-task-library--fast-pcall)
+- [Guard Clauses](#guard-clauses)
+- [String Interpolation](#string-interpolation)
+- [Generalized Iteration](#generalized-iteration)
+- [Table Methods & Immutability](#table-methods--immutability)
+- [LEGACY Patterns](#legacy-patterns)
+
+---
+
+## Language Overview
+
+Luau is the scripting language used in Roblox Studio — a fast, safe, gradually
+typed language **derived from Lua 5.1**. Key additions over Lua 5.1:
+- Gradual type system with annotations, inference, and user-defined type functions
+- `continue` keyword, compound operators (`+=`, `-=`, `*=`, `/=`, `%=`, `^=`, `..=`)
+- String interpolation with backtick strings (`` `value: {val}` ``)
+- Generalized iteration (`for k, v in table`)
+- `if-then-else` expressions (ternary)
+- `table.freeze`, `table.isfrozen`, `table.clone`, `table.clear`
+- High-performance `buffer` and `vector` native libraries
+- Native code generation (`--!native`) and fast `pcall`/`xpcall` VM execution (`LOP_FASTPCALL`)
+- No `goto` statement
+
+### What landed in 0.736 through 0.740 (source: luau-lang/luau release notes)
+
+All five releases are **fixes and internals, not new syntax you can write today**. Nothing here changes
+how you write Luau for Roblox; it is here so nobody mistakes an internal change for a new feature.
+
+| Release | Change | What it means for your code |
+|---|---|---|
+| 0.736 | Better generalization of lambdas defined in table literals; fewer internal errors on generics | Some previously-annotated tables may now infer correctly on their own |
+| 0.736 | Modules without a `return` can join cyclic groups; better cyclic-require errors | Cycle mistakes report more usefully |
+| 0.737 | Type arguments are now typechecked in explicit instantiation | Code that passed a bad explicit type argument may now error — a **fix**, not a regression |
+| 0.737 | `keyof` produces unions in lexicographic order | `keyof` results are stable across platforms |
+| 0.737 | Table indexers no longer leak their generics into unsealed tables passed as arguments | Fewer spurious inference results |
+| 0.737 | The require-cycle length limit was removed | Long cycles no longer hit an arbitrary cap (they are still bad design) |
+| 0.737 | Fixed upvalue handling in `repeat..until` loops using `continue` | A real miscompile; if you hit odd upvalue behaviour there, it was this |
+| 0.738 | Free types now generalize at the enclosing *function* scope, not the block | Fewer "could not generalize" false positives inside `if`/`for` blocks |
+| 0.738 | Generic-to-`unknown` replacement narrowed to generics used exactly once in negative position | `local function get(model) model:Find("leg") end` now infers `<T...>` instead of `unknown` |
+| 0.738 | Read-only table indexers infer better; integer types exposed to user-defined type functions | Inference fixes only |
+| 0.738 | Linter reports deprecation inside union/intersection types | `A | DeprecatedThing` now warns where it used to be silent |
+| 0.738 | Bidirectional inference for table literals passed to `setmetatable` (`setmetatable({}, { test = nil })` against `setmetatable<{}, { test: DateTime? }>`) | Fewer annotations needed on metatable-based classes |
+| 0.738 | Zero-trip-count loop unrolling is now free; SCCP pass improved; `luaV_equalval` `__eq` metatable fix | Internals |
+| **0.739** | **Generics are typechecked more strictly *inside* function bodies** | The one item here that can surface **new errors in code that used to pass**. `local function call<T>(fn: (T) -> T) fn(nil) end` was wrongly accepted and now errors. If `--!strict` starts complaining after a Studio update, check calls made *to* a generic parameter inside its own function body. It is a **fix**, not a regression — the old code was unsound |
+| **0.739** | Better error when indexing a value whose type was refined to `table` | Clearer diagnostic, same code |
+| **0.739** | VM: Luau→Luau metamethod calls inlined; table get/set slow paths faster; **metamethod lookup cache on frozen metatables** | Metatable-heavy code gets faster with no edit. `table.freeze` on a metatable now also buys cheaper metamethod dispatch — see `performance-optimization.md` |
+| **0.739** | Fixed an integer overflow after `table.move` that caused an out-of-bounds access | A real memory-safety bug. Drop any workaround you had for odd `table.move` behaviour on large ranges |
+| **0.740** | Function normalization no longer uses argument types as return types — `local z: () -> () = x` where `x: (() -> string \| number) & (() -> number \| boolean)` used to be accepted and now errors | Like 0.739, a soundness **fix** that can surface new errors in code that used to pass, here around intersections of function types. Fix the annotation; do not loosen to `--!nonstrict` |
+| **0.740** | Fixed an internal error on exceptionally large types ("Internal recursion counter limit exceeded in ReferenceCountInitializer") | If huge generated types used to crash the type checker, this was it |
+| **0.740** | VM: OOM during table re-hash or freeze no longer leaves the table in a bad state; A64 array-iteration fast path in `FORGLOOP`; faster `string.split`; x64 register-allocation spill fix | Internals, no edit. The `FORGLOOP` fast path is in native-code lowering, so it only touches `--!native` code compiled for ARM64 — not ordinary interpreted loops |
+
+**Experimental, and NOT usable in Roblox** — checked 2026-10-01 against the 0.740 source and
+Studio's published client settings (`clientsettingscdn.roblox.com/v2/settings/application/PCStudioApp`
+and `MacStudioApp`, ~25,000 flags each). None of the flags below is set there, and a Luau
+`FASTFLAGVARIABLE` defaults to **off**:
+
+| Prototype | Gate in 0.740 | Notes |
+|---|---|---|
+| **`if local`** statements (0.737) and expressions (0.739) | `LuauExperimentalIfLocalSyntax` / `LuauExperimentalIfLocalAnalysis` | **Renamed in 0.740** from `DebugLuauIfLocal*`. The release note says it is "still experimental but is moving closer to a full release". The drop of the `Debug` prefix is a sign of that progress, **not** of availability |
+| **Exact tables by default** — `{ x: number }` rejects extra fields, `{ x: number, ... }` allows them (RFC luau-lang/rfcs#11), 0.740 | `DebugLuauParseExactTables`, `DebugLuauExactTableTypes` | The release note calls it "an experimental feature". Do not write `...` in a table type for Roblox |
+| **Classes** RFC prototype | `DebugLuauUserDefinedClasses` | |
+| **`coroutine.finally`** (RFC #187), 0.738 | `DebugLuauCoroutineFinally` | VM side only |
+| Require top-level functions to be annotated, 0.738 | `DebugLuauWarnOnUnannotatedTopLevelFunctions` | A lint experiment |
+| An **`integer`** library (`integer.idiv` was fixed in 0.740) | `LuauIntegerLibrary` | Present in the open-source VM since at least 0.737, not enabled in Studio. Not a Roblox API |
+
+**None of these are enabled in Roblox Studio.** Do not write them into game code, and do not tell a
+user they can — an `if local` expression is exactly the kind of thing that looks like a shipped
+feature in a release note and errors in Studio. A flag losing its `Debug` prefix is the thing to
+watch; a flag appearing **set** in Studio's published settings is the thing that changes this advice.
+
+There is **NO new standard-library function in 0.736–0.740**; if a user asks "what new Luau methods
+can we use", the honest answer for this window is *none* — the changes are inference, VM internals,
+and flag-gated prototypes.
+
+---
+
+## Type System & Inference Modes
+
+### Inference Modes
+Set on the **first line** of any Script/LocalScript/ModuleScript:
+```luau
+--!strict    -- Asserts ALL types (inferred + explicit). Mandatory for new code.
+--!nonstrict -- Only checks explicitly annotated types (default)
+--!nocheck   -- Disables type checking entirely
+--!native    -- Compiles script to native machine code for maximum execution speed
+```
+
+### Core Types
+```luau
+--!strict
+local name: string = "Player1"                -- Primitives: string, number, boolean, nil
+local target: Part? = nil                     -- Optional: type? means type | nil
+local part: Part = Instance.new("Part")       -- Roblox classes are types
+local material: Enum.Material = part.Material -- Enums are types
+local bufferData: buffer = buffer.create(64)  -- Buffer type
+local vec: vector = vector.create(1, 2, 3)    -- Vector native type
+local value = someFunction()
+local str: string = (value :: any) :: string  -- Type cast with ::
+```
+
+---
+
+## New Type Solver & Type Functions
+
+The **New Type Solver** is the standard type engine for Luau (GA since November 2025):
+- Unlocks **built-in type functions** (`keyof`, `rawkeyof`, `setmetatable<T, M>`)
+- Supports **user-defined type functions** (`type function`) with `pcall`/`xpcall` error handling and runtime heap limits
+- Relabels inferred generics cleanly (`T`, `U`, `V`, `W` instead of `a`, `b`, `c`)
+- Deep bidirectional control-flow narrowing and refined table indexer resolution
+- Config: Studio → Workspace Properties → Scripting → `LuauTypeCheckMode`
+
+```luau
+--!strict
+-- Standardized generic definitions
+type Result<T, E> = { success: true, value: T } | { success: false, error: E }
+
+-- Metatable type constructor
+type ClassImpl = { __index: ClassImpl, greet: (self: Class) -> () }
+export type Class = setmetatable<{ name: string }, ClassImpl>
+```
+
+---
+
+## Type Annotations
+
+### Functions
+```luau
+--!strict
+local function add(x: number, y: number): number
+	return x + y
+end
+
+-- Multiple returns use parentheses
+local function divide(a: number, b: number): (number, boolean)
+	if b == 0 then return 0, false end
+	return a / b, true
+end
+
+-- Functional type definitions
+type Callback = (player: Player, score: number) -> ()
+type Validator = (value: string) -> (boolean, string?)
+```
+
+### Custom Types and Generics
+```luau
+--!strict
+type PlayerData = {
+	Name: string,
+	Score: number,
+	Inventory: { string },
+	Metadata: { [string]: any },
+}
+
+type Result<T> = { Success: boolean, Value: T?, Error: string? }
+
+local function wrapResult<T>(value: T): Result<T>
+	return { Success = true, Value = value, Error = nil }
+end
+```
+
+### Exports, Unions, Intersections
+```luau
+--!strict
+export type WeaponConfig = { Name: string, Damage: number, FireRate: number }
+type StringOrNumber = string | number
+type Named = { Name: string }
+type Scored = { Score: number }
+type NamedAndScored = Named & Scored
+```
+
+---
+
+## Type Operators & Type Constructors
+
+### `typeof` — infer type from a runtime value
+```luau
+--!strict
+type Car = typeof({ Speed = 0, Wheels = 4 })
+--> Car: { Speed: number, Wheels: number }
+```
+
+### `keyof` — extract keys as union
+```luau
+--!strict
+type Config = { Volume: number, Brightness: number, Language: string }
+type ConfigKey = keyof<Config>  --> "Volume" | "Brightness" | "Language"
+```
+
+### `setmetatable` — typed OOP metatables
+```luau
+--!strict
+local Account = {}
+Account.__index = Account
+
+export type Account = setmetatable<{ balance: number }, typeof(Account)>
+
+function Account.new(initial: number): Account
+	local self = setmetatable({ balance = initial }, Account)
+	return self
+end
+```
+
+---
+
+## Buffer and Vector Native Libraries
+
+Luau features high-performance native libraries for binary data and SIMD-accelerated 3D vectors.
+
+### Buffer Library (`buffer.*`)
+Buffers are fixed-size, mutable byte arrays designed for fast binary serialization, networking packets, and memory storage:
+```luau
+--!strict
+-- Create a 16-byte buffer
+local b = buffer.create(16)
+
+-- Write typed numeric values
+buffer.writeu8(b, 0, 255)
+buffer.writei32(b, 1, 100000)
+buffer.writef32(b, 5, 3.14159)
+buffer.writestring(b, 9, "HELO")
+
+-- Read values back
+local header = buffer.readu8(b, 0)
+local count = buffer.readi32(b, 1)
+local pi = buffer.readf32(b, 5)
+local tag = buffer.readstring(b, 9, 4)
+```
+
+### Vector Library (`vector.*`)
+Native SIMD-optimized vector type with zero table allocation overhead:
+```luau
+--!strict
+local v1 = vector.create(10, 20, 30)
+local v2 = vector.create(1, 2, 3)
+local v3 = v1 + v2
+local dotProduct = vector.dot(v1, v2)
+local magnitude = vector.magnitude(v1)
+```
+
+---
+
+## Native Code Generation (`--!native`)
+
+For compute-intensive algorithms (pathfinding, procedural generation, ray marching, heavy math), enable Luau Native Code Generation.
+
+> **Server-side only.** The official docs scope this to "server-side scripts in your game" — a
+> `--!native` LocalScript gains nothing from the comment. Only the script's *functions* are compiled;
+> top-level code usually runs once and does not benefit.
+
+```luau
+--!strict
+--!native
+-- Functions in this script are compiled to machine code (server-side)
+local function calculateNoiseGrid(width: number, height: number): { number }
+	local grid = table.create(width * height, 0)
+	for x = 1, width do
+		for y = 1, height do
+			grid[(y - 1) * width + x] = math.noise(x * 0.1, y * 0.1, 0)
+		end
+	end
+	return grid
+end
+```
+
+Per-function opt-in, when a whole-script pragma is too blunt:
+
+```luau
+@native
+local function hotPath(x: number): number
+	return x * x + 1
+end
+```
+
+> **Best Practice**: Use `--!native` on math-heavy or tight numerical server loops. UI and simple
+> event handler scripts do not benefit. Roblox publishes **no speedup figure** — the docs tell you to
+> measure with and without, using the Script Profiler, and they list real costs: longer server
+> startup, extra memory for the compiled code, and a native-code size limit past which compilation
+> **silently stops** and the remainder runs as ordinary bytecode.
+
+---
+
+## Naming Conventions
+
+Official Roblox Lua Style Guide (https://roblox.github.io/lua-style-guide/):
+
+| Convention | Use For | Example |
+|---|---|---|
+| **PascalCase** | Classes, ModuleScripts, Enums, Constructors | `PlayerManager` |
+| **camelCase** | Variables, functions, parameters, methods | `playerName`, `getScore()` |
+| **UPPER_SNAKE_CASE** | Constants | `MAX_HEALTH`, `DEFAULT_SPEED` |
+
+**Acronym rule:** Do NOT capitalize full acronyms — treat them as words:
+```luau
+--!strict
+-- CORRECT: JsonTable, HttpResponse, XmlParser
+-- WRONG:   JSONTable, HTTPResponse, XMLParser
+local jsonData = HttpService:JSONDecode(response)
+```
+
+---
+
+## Modern Task Library & Fast pcall
+
+**Always prefer `task.*` over legacy globals.** No throttling, precise frame timing.
+
+```luau
+--!strict
+-- task.spawn: runs immediately in a new thread
+task.spawn(function()
+	print("Immediate execution")
+end)
+
+-- task.defer: runs at end of current resume cycle
+task.defer(function()
+	print("Deferred execution")
+end)
+
+-- task.delay: resumes on a Heartbeat step at least N seconds later -- never earlier,
+-- and later than N under load. Do not treat the delay as exact.
+local thread = task.delay(5, function()
+	print("5 seconds later")
+end)
+
+-- task.cancel: cancel a scheduled thread
+task.cancel(thread)
+
+-- task.wait: yields for N seconds, returns actual elapsed time
+local elapsed = task.wait(1)  -- Yields ~1 second
+```
+
+### Fast `pcall` / `xpcall` (`LOP_FASTPCALL`)
+In Luau 0.735+, the VM introduces `LOP_FASTPCALL`. The release note's exact claim is that
+`pcall`/`xpcall` overhead is *"around two times lower"* — **halved, not free.** Wrap fallible
+operations without agonizing over the call cost, but do not treat `pcall` in a hot inner loop as
+zero-cost, and do not quote a bigger number: `performance-optimization.md` carries the same
+correction.
+
+```luau
+--!strict
+local success, result = pcall(function()
+	return DataStoreService:GetDataStore("PlayerData"):GetAsync(playerKey)
+end)
+if not success then
+	warn(`[DataStore] Failed to fetch data: {result}`)
+end
+```
+
+---
+
+## Guard Clauses
+
+Prefer early returns to reduce nesting:
+```luau
+--!strict
+local function processPlayer(player: Player?)
+	if not player then return end
+	local character = player.Character
+	if not character then return end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+	humanoid.Health = humanoid.MaxHealth
+end
+```
+
+---
+
+## String Interpolation
+
+Use backticks with `{expression}` — **prefer over `..` concatenation**:
+```luau
+--!strict
+local name = "Builder"
+local score = 42
+local message = `Hello {name}, your score is {score}!`
+local doubled = `{name} has {score * 2} double points`
+local escaped = `Literal \`backtick\` and \{braces\}`
+```
+
+---
+
+## Generalized Iteration
+
+Iterate directly over tables without `pairs()`/`ipairs()`:
+```luau
+--!strict
+local inventory = { Sword = 1, Shield = 2, Potion = 5 }
+for item, count in inventory do
+	print(`{item}: {count}`)
+end
+
+local names = { "Alice", "Bob", "Charlie" }
+for index, name in names do
+	print(`{index}. {name}`)
+end
+```
+
+---
+
+## Table Methods & Immutability
+
+```luau
+--!strict
+-- table.find: returns index or nil
+local fruits = { "Apple", "Banana", "Cherry" }
+local idx = table.find(fruits, "Banana")  --> 2
+
+-- table.create: pre-allocate with optional fill
+local zeros = table.create(10, 0)  -- { 0, 0, ..., 0 }
+
+-- table.clear: empty an existing table without reallocating memory
+local reusableTable = { 1, 2, 3 }
+table.clear(reusableTable)         -- {} (retains capacity, 0 GC pressure)
+
+-- table.freeze: make read-only (shallow)
+local CONFIG = table.freeze({ MaxPlayers = 50, RoundTime = 300 })
+-- CONFIG.MaxPlayers = 100         --> ERROR: Attempt to modify a readonly table
+
+-- table.isfrozen: check immutability status
+local isProtected = table.isfrozen(CONFIG) --> true
+
+-- table.clone: shallow copy
+local copy = table.clone(original)
+```
+
+---
+
+## LEGACY Patterns
+
+### Deprecated Globals → Modern Replacements
+
+| Legacy (deprecated) | Modern | Notes |
+|---|---|---|
+| `wait(n)` | `task.wait(n)` | Legacy throttles; modern is precise |
+| `spawn(fn)` | `task.spawn(fn)` | Legacy delays ≥1 frame |
+| `delay(n, fn)` | `task.delay(n, fn)` | Legacy throttles timing |
+| `pairs(t)` / `ipairs(t)` | `for k, v in t` | Generalized iteration |
+| `"a" .. b .. "c"` | `` `a {b} c` `` | String interpolation |
+| `results = {}` in loop | `table.clear(results)` | 0 GC memory reuse |
+
+```luau
+--!strict
+-- LEGACY → MODERN
+-- wait(1)                       → task.wait(1)
+-- spawn(function() end)         → task.spawn(function() end)
+-- delay(5, function() end)      → task.delay(5, function() end)
+-- for k, v in pairs(t) do end  → for k, v in t do end
+-- name .. " scored " .. tostring(score) → `{name} scored {score}`
+```
