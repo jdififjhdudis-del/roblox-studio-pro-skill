@@ -1,6 +1,6 @@
 {
   "skill_name": "roblox-studio-pro",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "last_updated": "2026-10-01T11:30:00+07:00",
   "last_updated_by": "claude-code (owner request: ingest the latest engine/Luau, no false positives or regressions)",
   "update_source": "https://agentskills.io/specification, https://agentskills.io/client-implementation/adding-skills-support, agentskills.io client list and each agent's own skills documentation (Claude Code, Codex, Gemini CLI, Antigravity, Cursor, GitHub Copilot, VS Code, OpenCode, Kiro, Roo Code, Goose, Junie, Amp), official skills-ref validator; integrated MIT-licensed upstream baseline MSayib/roblox-dev-skill fd4926f093dbdea137f0ed1d38aae4945b714785",
@@ -8,6 +8,14 @@
   "luau_version_at_update": "0.740",
   "update_interval_days": 7,
   "update_history": [
+    {
+      "date": "2026-10-09",
+      "version": "3.1.0",
+      "changes": "Added original advanced UI-to-gameplay shop examples for legacy Roact 1.x and version-pinned Fusion 0.3, a shared server-authoritative RemoteEvent service, framework version/deprecation guidance, Studio test plan, manual/automated evaluations, and static integrity checks. Kept the Roblox API freshness date and engine/Luau snapshot unchanged; no Roblox API refresh is claimed.",
+      "engine_version": "unchanged baseline 0.741.19.7411056 (source states verified 2026-10-01)",
+      "decision_by": "user request (2026-10-09): add advanced Roact/Fusion UI-gameplay examples to the GitHub repository",
+      "verified_by": "Passed skill-creator quick_validate; local integrity suite checked 33 Markdown files, 64 evaluation cases, local links/fences, MIT attribution, matching version fields, and Python syntax; Luau 0.741 luau-compile parsed all three framework examples. No Roblox Studio runtime or target-place test was performed."
+    },
     {
       "date": "2026-10-08",
       "version": "3.0.0",

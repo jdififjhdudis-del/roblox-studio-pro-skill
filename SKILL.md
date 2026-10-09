@@ -130,6 +130,7 @@ Match user intent to the appropriate reference file. Read the file BEFORE genera
 | Performance, memory, optimization, Parallel Luau | `references/performance-optimization.md` |
 | Using Roblox Studio MCP tools effectively | `references/mcp-integration.md` |
 | UI, GUI, ScreenGui, menus, HUD, StyleQuery | `references/ui-systems.md` plus `references/ui-production-workflow.md`, `references/ui-component-patterns.md`, and `references/ui-systems-roblox-studio-pro.md` |
+| UI-to-gameplay interaction using Roact/Fusion, framework version checks, or advanced examples | `references/advanced-ui-framework-examples.md` plus `references/networking.md` and `references/security-hardening.md` |
 | Migrating legacy code, deprecated APIs | `references/legacy-migration.md` |
 | Monetization, game passes, donations, transfers | `references/monetization.md` |
 | File formats, import/export, asset management | `references/file-formats-and-assets.md` |

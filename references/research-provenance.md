@@ -17,8 +17,13 @@ The UI-focused material authored for this repository remains alongside the upstr
 - `ui-systems-roblox-studio-pro.md` — responsive composition, accessibility, lifecycle and game-context guidelines.
 - `gameplay-systems-and-feature-slices.md`, `game-design-and-operations.md`, and `assets-animation-audio.md` — additional production playbooks.
 - `templates/` — UI brief, feature slice, test evidence and a LocalScript UI demonstration.
+- `references/advanced-ui-framework-examples.md` plus `templates/framework-examples/` — original Roact 1.x and Fusion 0.3 shop interaction examples sharing a server-authoritative RemoteEvent contract; the server sample uses in-memory demonstration data only.
 
-The `.luau` demo has not been executed in Roblox Studio in this environment. Treat it as an editable starting point and verify it in the target experience.
+The `.luau` UI demos and framework examples have not been executed in Roblox Studio in this environment. Treat them as editable starting points and verify in the target experience; static repository checks do not establish runtime behavior.
+
+## Framework-example research (2026-10-09)
+
+The additional integration examples were authored from the cited docs rather than copied from framework repositories. The Roact upstream README states Roact is deprecated and points to the Roblox `react-luau` library; consequently the Roact template is clearly scoped to existing 1.x projects. The Fusion sample is pinned in prose to the documented 0.3 API, whose tutorial identifies pre-1.0 breaking-change risk. The examples borrow API understanding—not source code—from Roact's event/lifecycle/binding documentation and Fusion's events/scopes/components/server-fetch cookbook. The shared shop server sample demonstrates an untrusted-client boundary; its memory-only data, omitted persistence, and non-production purchase scope are explicitly disclosed.
 
 ## Additional design-pattern research
 

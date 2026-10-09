@@ -58,6 +58,8 @@ for required in ("MIT License", "Copyright", "Permission is hereby granted"):
 evals = json.loads((ROOT / "evals/evals.json").read_text(encoding="utf-8"))
 if evals.get("skill_name") != ROOT.name:
     errors.append("evals/evals.json: skill_name does not match the skill directory")
+if evals.get("version") != metadata.get("version"):
+    errors.append("evals/evals.json: version must match metadata.json")
 ids = [case.get("id") for case in evals.get("evals", [])]
 if len(ids) != len(set(ids)):
     errors.append("evals/evals.json: duplicate case IDs")
@@ -65,6 +67,33 @@ for case in evals.get("evals", []):
     for ref in case.get("expected_references", []):
         if not (ROOT / "references" / ref).exists():
             errors.append(f"evals/evals.json: missing expected reference {ref!r} in case {case.get('id')}")
+
+framework_dir = ROOT / "templates/framework-examples"
+framework_files = {
+    "server": framework_dir / "ShopService.server.luau",
+    "roact": framework_dir / "RoactShop.client.luau",
+    "fusion": framework_dir / "FusionShop.client.luau",
+}
+for label, path in framework_files.items():
+    if not path.is_file():
+        errors.append(f"framework examples: missing {path.relative_to(ROOT)}")
+
+if all(path.is_file() for path in framework_files.values()):
+    server = framework_files["server"].read_text(encoding="utf-8")
+    roact = framework_files["roact"].read_text(encoding="utf-8")
+    fusion = framework_files["fusion"].read_text(encoding="utf-8")
+    reference = (ROOT / "references/advanced-ui-framework-examples.md").read_text(encoding="utf-8")
+    checks = {
+        "server-authoritative remote handler": "OnServerEvent:Connect" in server and "FireClient" in server,
+        "server price and duplicate-ownership checks": "ITEM_PRICE" in server and "ownedItems[itemId]" in server,
+        "client sends no price field": "PurchaseRequest:FireServer({ requestId = requestId, itemId = ITEM_ID })" in roact and "PurchaseRequest:FireServer({ requestId = requestId, itemId = ITEM_ID })" in fusion,
+        "Roact cleanup and deferred UI events": "function ShopPanel:willUnmount()" in roact and "task.defer(function()" in roact,
+        "Fusion 0.3 reactive state and scope cleanup": "Fusion.scoped(Fusion)" in fusion and "scope:Computed" in fusion and "scope:doCleanup()" in fusion,
+        "framework limitations and install/test guidance": "deprecated" in reference.casefold() and "non-persistent" in reference.casefold() and "Studio verification plan" in reference,
+    }
+    for label, passed in checks.items():
+        if not passed:
+            errors.append(f"framework examples: failed check: {label}")
 
 python_files = [*ROOT.glob("tools/robloxdocs/*.py"), Path(__file__)]
 with tempfile.TemporaryDirectory() as temp:

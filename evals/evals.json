@@ -1,6 +1,6 @@
 {
   "skill_name": "roblox-studio-pro",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "evals": [
     {
       "id": 1,
@@ -503,6 +503,79 @@
         "luau-fundamentals.md"
       ],
       "notes": "Use local dump only if present and fresh, otherwise official docs; inspect Security/Capabilities/Tags."
+    },
+    {
+      "id": 58,
+      "prompt": "I have a Roact 1.x shop. Add a button that requests a purchase from the server and shows the authoritative result.",
+      "should_trigger": true,
+      "expected_references": [
+        "advanced-ui-framework-examples.md",
+        "networking.md",
+        "security-hardening.md"
+      ],
+      "notes": "Treat Roact as legacy, preserve the current project package, validate on the server, correlate response IDs, time out safely, and disconnect event listeners on unmount."
+    },
+    {
+      "id": 59,
+      "prompt": "Build the same reactive Roblox shop in Fusion 0.3 with a computed label, spring animation, and proper cleanup.",
+      "should_trigger": true,
+      "expected_references": [
+        "advanced-ui-framework-examples.md",
+        "networking.md",
+        "security-hardening.md"
+      ],
+      "notes": "Use the documented 0.3 scoped API only after checking the installed version; keep yielding/network work outside Computed and clean connections with the scope."
+    },
+    {
+      "id": 60,
+      "prompt": "I am starting a new Roblox game. Should I use Roact for all UI?",
+      "should_trigger": true,
+      "expected_references": [
+        "advanced-ui-framework-examples.md",
+        "ui-systems.md"
+      ],
+      "notes": "Roact upstream marks it deprecated; mention React Luau and Fusion as options, inspect requirements and existing conventions, and do not force a framework."
+    },
+    {
+      "id": 61,
+      "prompt": "The client sends an item ID and price to my purchase RemoteEvent; can the server subtract the supplied price?",
+      "should_trigger": true,
+      "expected_references": [
+        "advanced-ui-framework-examples.md",
+        "security-hardening.md",
+        "networking.md"
+      ],
+      "notes": "Reject client-supplied price/balance/grant authority; validate item ID and request shape, look up the price on the server, rate-limit and grant only after authoritative checks."
+    },
+    {
+      "id": 62,
+      "prompt": "A Fusion shop request timed out, then an old server response changed the closed UI.",
+      "should_trigger": true,
+      "expected_references": [
+        "advanced-ui-framework-examples.md",
+        "ui-component-patterns.md"
+      ],
+      "notes": "Correlate replies to the active request, ignore stale replies, clean timers/connections on scope destruction, and refresh authoritative state after timeout."
+    },
+    {
+      "id": 63,
+      "prompt": "Can I run the RoactShop and FusionShop LocalScripts together to compare them live?",
+      "should_trigger": true,
+      "expected_references": [
+        "advanced-ui-framework-examples.md"
+      ],
+      "notes": "The samples share remotes/request IDs and are alternatives; install/run one client implementation at a time unless deliberately isolating protocol IDs and views."
+    },
+    {
+      "id": 64,
+      "prompt": "Make a developer-product purchase button and grant the product when my client RemoteEvent returns success.",
+      "should_trigger": true,
+      "expected_references": [
+        "advanced-ui-framework-examples.md",
+        "monetization.md",
+        "security-hardening.md"
+      ],
+      "notes": "Do not trust client success; route paid product fulfillment through MarketplaceService.ProcessReceipt and current policy."
     }
   ]
 }
